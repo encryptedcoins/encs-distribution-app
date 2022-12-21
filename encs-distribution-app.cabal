@@ -28,7 +28,16 @@ common lang
 library
     import: lang
     exposed-modules:
+      Main
     build-depends:
-      base                          >= 4.9 && < 5
+      base                          >= 4.9 && < 5,
+      aeson                                  -any,
+      cardano-server                         -any,
+      encs                                   -any,
+      exceptions                             -any,
+      mtl                                    -any,
+      plutus-ledger-api                      -any,
+      servant-server                         -any,
+      text                                   -any,
 
     hs-source-dirs: src

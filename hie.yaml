@@ -1,0 +1,6 @@
+cradle:
+  cabal:
+    - path: "src"
+      component: "encs-distribution-app:lib:encs-distribution-app"
+#    - path: "test"
+#      component: "encs-distribution-app:test:encs-distribution-app"
