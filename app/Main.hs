@@ -1,4 +1,6 @@
 module Main where
 
+import ENCS.Main
+
 main :: IO ()
-main = putStrLn "Hello, Haskell!"
+main = runENCSApp
