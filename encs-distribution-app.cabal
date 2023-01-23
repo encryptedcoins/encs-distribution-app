@@ -39,9 +39,11 @@ library
       exceptions                             -any,
       mtl                                    -any,
       optparse-applicative                   -any,
+      plutus-apps-extra                      -any,
       plutus-ledger-api                      -any,
       servant-server                         -any,
       text                                   -any,
+
 
     hs-source-dirs: src
 
