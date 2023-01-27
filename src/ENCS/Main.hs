@@ -6,23 +6,24 @@
 
 module ENCS.Main where
 
-import Cardano.Server.Config             (decodeOrErrorFromFile)
-import Cardano.Server.Input              (InputContext(..))
-import Cardano.Server.Internal           (HasServer(..), Env(..), runAppM)
-import Cardano.Server.Tx                 (mkTx)
-import Control.Monad                     (void)
-import Control.Monad.Reader              (asks)
-import Data.Aeson                        (FromJSON(..))
-import Data.Foldable                     (traverse_)
-import Data.Functor                      ((<&>))
-import Data.List                         (tails)
-import ENCS.Opts
-import ENCOINS.ENCS.Distribution         (mkDistribution, processDistribution)
-import ENCOINS.ENCS.OffChain             (encsMintTx, distributionTx)
-import ENCOINS.ENCS.OnChain              (ENCSParams, distributionFee, distributionFeeCount)
-import GHC.Generics                      (Generic)
-import IO.Wallet                         (ownAddresses)
-import Plutus.V2.Ledger.Api              (Address)
+import           Control.Monad                  (void, unless)
+import           Control.Monad.Reader           (asks)
+import           Data.Aeson                     (FromJSON(..))
+import           Data.Default                   (def)
+import           Data.Functor                   ((<&>))
+import           Data.List                      (tails)
+import           GHC.Generics                   (Generic)
+import           Plutus.V2.Ledger.Api           (Address)
+import qualified PlutusTx.Prelude               as Plutus
+
+import           Cardano.Server.Config          (decodeOrErrorFromFile)
+import           Cardano.Server.Internal        (HasServer(..), Env(..), runAppM)
+import           Cardano.Server.Tx              (mkTx, checkForCleanUtxos)
+import           ENCS.Opts
+import           ENCOINS.ENCS.Distribution      (mkDistribution, processDistribution)
+import           ENCOINS.ENCS.OffChain          (encsMintTx, distributionTx)
+import           ENCOINS.ENCS.OnChain           (ENCSParams, distributionValidatorAddresses)
+import           IO.Wallet                      (ownAddresses)
 
 runENCSApp :: IO ()
 runENCSApp = do
@@ -43,25 +44,28 @@ instance HasServer ENCSApp where
     type AuxiliaryEnvOf ENCSApp = ENCSEnv
 
     loadAuxiliaryEnv _ = do
-        envENCSParams <- decodeOrErrorFromFile "testnet/encs-params.json"
-        envAddrList   <- decodeOrErrorFromFile "testnet/addresses.json" <&> processDistribution
+        envENCSParams <- decodeOrErrorFromFile "encs-params.json"
+        envAddrList   <- decodeOrErrorFromFile "distribution.json" <&> processDistribution
         pure ENCSEnv{..}
 
     type InputOf ENCSApp = ()
 
     serverSetup = do
         ENCSEnv{..} <- asks envAuxiliary
-        let amtF = distributionFee * distributionFeeCount
-            distribution = mkDistribution envENCSParams envAddrList amtF
-        addrs <- ownAddresses
-        void $ mkTx addrs emptyContext [encsMintTx envENCSParams distribution]
+        let fee          = 100
+            nFeeCovered  = Plutus.length envAddrList
+            distribution = mkDistribution envENCSParams envAddrList (fee, nFeeCovered)
+        unless (null distribution) $ do
+            let utxos = Just $ head distribution
+            addrs <- ownAddresses
+            void $ mkTx addrs def [encsMintTx envENCSParams utxos]
 
     serverIdle = do
+        checkForCleanUtxos
         ENCSEnv{..} <- asks envAuxiliary
-        let amtF = distributionFee * distributionFeeCount
-            distribution = mkDistribution envENCSParams envAddrList amtF
-        addrs <- ownAddresses
-        traverse_ (\d -> mkTx addrs emptyContext [distributionTx d]) $ tails distribution
-
-emptyContext :: InputContext
-emptyContext = InputContextServer mempty
+        let fee          = 100
+            nFeeCovered  = Plutus.length envAddrList
+            distribution = mkDistribution envENCSParams envAddrList (fee, nFeeCovered)
+            addrs = distributionValidatorAddresses distribution
+        void $ mkTx addrs def $ map distributionTx $ tails distribution
+        serverIdle
