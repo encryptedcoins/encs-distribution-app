@@ -23,23 +23,25 @@ packages: ./.
 
 source-repository-package
   type: git
+  location: https://github.com/encryptedcoins/ENCS
+  tag: 5e113aa4169086a4038d818b043cfe0c644902e2
+
+source-repository-package
+  type: git
+  location: https://github.com/encryptedcoins/cardano-server
+  tag: 08cefa23ba1fc815fd4b5d239a138ba9d26301ef
+  subdir:
+    cardano-server
+
+source-repository-package
+  type: git
   location: https://github.com/encryptedcoins/plutus-tx-extra.git
   tag: eb321e30bda455de199d3515e0cc411f2d51e6fa
 
 source-repository-package
   type: git
-  location: https://github.com/encryptedcoins/ENCS
-  tag: 1cb7dbf9b0a9e8e5746139c14276976ecaec6a82
-
-source-repository-package
-  type: git
-  location: https://github.com/encryptedcoins/cardano-server
-  tag: 2b3166ca82ca05f5dd8027fbf8798a1111477428
-
-source-repository-package
-  type: git
   location: https://github.com/encryptedcoins/plutus-apps-extra
-  tag: 60ace6194fb699dd394b5dc179f46e4edc4d4d4f
+  tag: 4d6965841bbbcdfccce9fc8e1c1ed355031715ff
 
 source-repository-package
   type: git
