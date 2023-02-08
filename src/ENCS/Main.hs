@@ -23,7 +23,7 @@ import           ENCS.Opts
 import           ENCOINS.ENCS.Distribution      (mkDistribution, processDistribution)
 import           ENCOINS.ENCS.OffChain          (encsMintTx, distributionTx)
 import           ENCOINS.ENCS.OnChain           (ENCSParams, distributionValidatorAddresses)
-import           IO.Wallet                      (ownAddresses)
+import           PlutusAppsExtra.IO.Wallet      (ownAddresses)
 
 runENCSApp :: IO ()
 runENCSApp = do
