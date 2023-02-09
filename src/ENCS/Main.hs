@@ -6,24 +6,25 @@
 
 module ENCS.Main where
 
-import           Control.Monad                  (void, unless)
-import           Control.Monad.Reader           (asks)
-import           Data.Aeson                     (FromJSON(..))
-import           Data.Default                   (def)
-import           Data.Functor                   ((<&>))
-import           Data.List                      (tails)
-import           GHC.Generics                   (Generic)
-import           Plutus.V2.Ledger.Api           (Address)
-import qualified PlutusTx.Prelude               as Plutus
+import           Control.Monad                   (unless, void)
+import           Control.Monad.Reader            (asks)
+import           Data.Aeson                      (FromJSON (..))
+import           Data.Default                    (def)
+import           Data.Functor                    ((<&>))
+import           Data.List                       (tails)
+import           GHC.Generics                    (Generic)
+import           Plutus.V2.Ledger.Api            (Address)
+import qualified PlutusTx.Prelude                as Plutus
 
-import           Cardano.Server.Config          (decodeOrErrorFromFile)
-import           Cardano.Server.Internal        (HasServer(..), Env(..), runAppM)
-import           Cardano.Server.Tx              (mkTx, checkForCleanUtxos)
+import           Cardano.Server.Config           (decodeOrErrorFromFile)
+import           Cardano.Server.Internal         (Env (..), HasServer (..), runAppM)
+import           Cardano.Server.Tx               (checkForCleanUtxos, mkTx)
+import           Cardano.Server.Utils.ChainIndex (ChainIndex (Kupo))
+import           ENCOINS.ENCS.Distribution       (mkDistribution, processDistribution)
+import           ENCOINS.ENCS.OffChain           (distributionTx, encsMintTx)
+import           ENCOINS.ENCS.OnChain            (ENCSParams, distributionValidatorAddresses)
 import           ENCS.Opts
-import           ENCOINS.ENCS.Distribution      (mkDistribution, processDistribution)
-import           ENCOINS.ENCS.OffChain          (encsMintTx, distributionTx)
-import           ENCOINS.ENCS.OnChain           (ENCSParams, distributionValidatorAddresses)
-import           PlutusAppsExtra.IO.Wallet      (ownAddresses)
+import           PlutusAppsExtra.IO.Wallet       (ownAddresses)
 
 runENCSApp :: IO ()
 runENCSApp = do
@@ -69,3 +70,5 @@ instance HasServer ENCSApp where
             addrs = distributionValidatorAddresses distribution
         void $ mkTx addrs def $ map distributionTx $ tails distribution
         serverIdle
+
+    defaultChainIndex = Kupo
