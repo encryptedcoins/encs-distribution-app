@@ -1,4 +1,5 @@
 { "server_address"      : "localhost:3000"
+, "node_file_path"      : ""
 , "node_address"        : ""
 , "chain_index_address" : ""
 , "auxiliary_env_file"  : "encs-params.json"
