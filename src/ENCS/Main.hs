@@ -1,11 +1,12 @@
-{-# LANGUAGE DeriveAnyClass    #-}
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
-{-# LANGUAGE TypeApplications  #-}
-{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE DeriveAnyClass     #-}
+{-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE LambdaCase         #-}
+{-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE RecordWildCards    #-}
+{-# LANGUAGE TypeApplications   #-}
+{-# LANGUAGE TypeFamilies       #-}
 
 module ENCS.Main where
 
@@ -70,7 +71,7 @@ instance HasServer ENCSApp where
     serverSetup = setupH $ do
             ENCSEnv{..} <- asks envAuxiliary
             checkThatSetupUTXOExists $ fst envENCSParams
-            let fee          = 100
+            let fee          = 100_000_000
                 nFeeCovered  = Plutus.length envAddrList
                 distribution = mkDistribution envENCSParams envAddrList (fee, nFeeCovered)
             unless (null distribution) $ do
@@ -90,7 +91,7 @@ instance HasServer ENCSApp where
             go = do
                 ENCSEnv{..} <- asks envAuxiliary
                 checkForCleanUtxos
-                let fee          = 100
+                let fee          = 100_000_000
                     nFeeCovered  = Plutus.length envAddrList
                     distribution = mkDistribution envENCSParams envAddrList (fee, nFeeCovered)
                     addrs = distributionValidatorAddresses distribution

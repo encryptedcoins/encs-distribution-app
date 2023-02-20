@@ -4,7 +4,7 @@
 , "chain_index_address" : ""
 , "auxiliary_env_file"  : "encs-params.json"
 , "wallet_file"         : "wallets/wallet.json"
-, "min_utxos_amount"    : 10
+, "min_utxos_amount"    : 1
 , "network_id"          : {"tag" : "Testnet", "contents" : 2}
 , "inactive_endpoints"  :
     { "ping"          : true
