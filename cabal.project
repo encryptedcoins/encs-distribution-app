@@ -20,9 +20,6 @@ index-state:
   , cardano-haskell-packages 2022-12-22T00:00:00Z
 
 packages: ./.
-    -- ~/cardano-src/projects/cardano-server/cardano-server
-    -- ~/cardano-src/projects/ENCS
-    -- ~/cardano-src/projects/plutus-common
 
 source-repository-package
   type: git
@@ -44,7 +41,7 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/encryptedcoins/plutus-apps-extra
-  tag: b7821c96ba9b98b89bbbc850d6f01655e2999754
+  tag: 3b8d23330b20408718192e2ce33888b099a3bde3
 
 source-repository-package
   type: git
