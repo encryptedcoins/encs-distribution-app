@@ -1,45 +1,45 @@
 {-# LANGUAGE DeriveAnyClass    #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TypeApplications  #-}
 {-# LANGUAGE TypeFamilies      #-}
-{-# LANGUAGE LambdaCase #-}
 
 module ENCS.Main where
 
-import           Cardano.Api                   (writeFileJSON)
-import           Cardano.Server.Config         (decodeOrErrorFromFile)
-import           Cardano.Server.Internal       (AppM (..), Env (..), HasServer (..), getNetworkId, runAppM)
-import           Cardano.Server.Tx             (checkForCleanUtxos, mkTx)
-import           Control.Monad                 (unless, void, when)
-import           Control.Monad.Catch           (Exception (..), MonadThrow (throwM), handle, catches, Handler (..))
-import           Control.Monad.IO.Class        (MonadIO (liftIO))
-import           Control.Monad.Reader          (asks)
-import           Data.Aeson                    (FromJSON (..), eitherDecodeFileStrict)
-import           Data.Default                  (def)
-import           Data.Functor                  ((<&>))
-import           Data.List                     (tails)
-import           Data.Maybe                    (fromMaybe, isNothing)
-import qualified Data.Text                     as T
-import qualified Data.Text.IO                  as T
-import           ENCOINS.ENCS.Distribution     (mkDistribution, processDistribution)
-import           ENCOINS.ENCS.Distribution.IO  (verifyDistribution)
-import           ENCOINS.ENCS.OffChain         (distributionTx, encsMintTx)
-import           ENCOINS.ENCS.OnChain          (ENCSParams, distributionValidatorAddresses, encsTokenName, encsCurrencySymbol)
-import           ENCS.Opts                     (ServerMode (Run, Setup, Verify), runWithOpts)
-import           GHC.Generics                  (Generic)
-import           Plutus.V2.Ledger.Api          (Address, TxOutRef)
-import           PlutusAppsExtra.IO.ChainIndex (ChainIndex (..), HasChainIndex, getUnspentTxOutFromRef)
-import           PlutusAppsExtra.IO.Wallet     (ownAddresses)
-import           PlutusAppsExtra.Types.Error   (MkTxError (..))
-import           PlutusAppsExtra.Utils.Address (addressToBech32)
-import qualified PlutusTx.Prelude              as Plutus
-import Control.Monad.Extra (whenM, unlessM)
-import PlutusAppsExtra.IO.Blockfrost (getAssetHistory)
-import PlutusAppsExtra.Utils.Blockfrost (AssetHistoryResponse(..), BfMintingPolarity (..))
-import PlutusAppsExtra.Utils.Servant (handle404)
+import           Cardano.Api                      (writeFileJSON)
+import           Cardano.Server.Config            (decodeOrErrorFromFile)
+import           Cardano.Server.Internal          (AppM (..), Env (..), HasServer (..), getNetworkId, runAppM)
+import           Cardano.Server.Tx                (checkForCleanUtxos, mkTx)
+import           Control.Monad                    (unless, void)
+import           Control.Monad.Catch              (Exception (..), Handler (..), MonadThrow (throwM), catches, handle)
+import           Control.Monad.Extra              (unlessM, whenM)
+import           Control.Monad.IO.Class           (MonadIO (liftIO))
+import           Control.Monad.Reader             (asks)
+import           Data.Aeson                       (FromJSON (..), eitherDecodeFileStrict)
+import           Data.Default                     (def)
+import           Data.Functor                     ((<&>))
+import           Data.List                        (tails)
+import           Data.Maybe                       (fromMaybe, isNothing)
+import qualified Data.Text                        as T
+import qualified Data.Text.IO                     as T
+import           ENCOINS.ENCS.Distribution        (mkDistribution, processDistribution)
+import           ENCOINS.ENCS.Distribution.IO     (verifyDistribution)
+import           ENCOINS.ENCS.OffChain            (distributionTx, encsMintTx)
+import           ENCOINS.ENCS.OnChain             (ENCSParams, distributionValidatorAddresses, encsCurrencySymbol, encsTokenName)
+import           ENCS.Opts                        (ServerMode (Run, Setup, Verify), runWithOpts)
+import           GHC.Generics                     (Generic)
+import           Plutus.V2.Ledger.Api             (Address)
+import           PlutusAppsExtra.IO.Blockfrost    (getAssetHistory)
+import           PlutusAppsExtra.IO.ChainIndex    (ChainIndex (..), getUnspentTxOutFromRef)
+import           PlutusAppsExtra.IO.Wallet        (ownAddresses)
+import           PlutusAppsExtra.Types.Error      (MkTxError (..))
+import           PlutusAppsExtra.Utils.Address    (addressToBech32)
+import           PlutusAppsExtra.Utils.Blockfrost (AssetHistoryResponse (..), BfMintingPolarity (..))
+import           PlutusAppsExtra.Utils.Servant    (handle404)
+import qualified PlutusTx.Prelude                 as Plutus
 
 runENCSApp :: IO ()
 runENCSApp = do
