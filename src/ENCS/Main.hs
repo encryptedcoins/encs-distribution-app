@@ -13,7 +13,8 @@ module ENCS.Main where
 import           Cardano.Api                      (writeFileJSON)
 import           Cardano.Server.Config            (decodeOrErrorFromFile)
 import           Cardano.Server.Internal          (AppM (..), Env (..), HasServer (..), getNetworkId, runAppM)
-import           Cardano.Server.Tx                (checkForCleanUtxos, mkTx)
+import           Cardano.Server.Tx                (checkForCleanUtxos, mkTx, mkBalanceTx, mkTxErrorH)
+import           Cardano.Server.Utils.Logger      (HasLogger(..), logPretty)
 import           Control.Monad                    (unless, void)
 import           Control.Monad.Catch              (Exception (..), Handler (..), MonadThrow (throwM), catches, handle)
 import           Control.Monad.Extra              (unlessM, whenM)
@@ -32,10 +33,13 @@ import           ENCOINS.ENCS.OffChain            (distributionTx, encsMintTx)
 import           ENCOINS.ENCS.OnChain             (ENCSParams, distributionValidatorAddresses, encsCurrencySymbol, encsTokenName)
 import           ENCS.Opts                        (ServerMode (Run, Setup, Verify), runWithOpts)
 import           GHC.Generics                     (Generic)
+import           Ledger.Ada                       (lovelaceValueOf)
 import           Plutus.V2.Ledger.Api             (Address)
+import           PlutusAppsExtra.Constraints.OffChain (utxoProducedTx)
 import           PlutusAppsExtra.IO.Blockfrost    (getAssetHistory)
 import           PlutusAppsExtra.IO.ChainIndex    (ChainIndex (..), getUnspentTxOutFromRef)
-import           PlutusAppsExtra.IO.Wallet        (ownAddresses)
+import           PlutusAppsExtra.IO.Node          (sumbitTxToNodeLocal)
+import           PlutusAppsExtra.IO.Wallet        (ownAddresses, signTx, getWalletAddr)
 import           PlutusAppsExtra.Types.Error      (MkTxError (..))
 import           PlutusAppsExtra.Utils.Address    (addressToBech32)
 import           PlutusAppsExtra.Utils.Blockfrost (AssetHistoryResponse (..), BfMintingPolarity (..))
@@ -90,12 +94,24 @@ instance HasServer ENCSApp where
         where
             go = do
                 ENCSEnv{..} <- asks envAuxiliary
+                walletAddr <- getWalletAddr
                 checkForCleanUtxos
                 let fee          = 100_000_000
                     nFeeCovered  = Plutus.length envAddrList
                     distribution = mkDistribution envENCSParams envAddrList (fee, nFeeCovered)
                     addrs = distributionValidatorAddresses distribution
-                void $ mkTx addrs def $ map distributionTx $ init $ tails distribution
+                    m d = distributionTx d >> utxoProducedTx walletAddr (lovelaceValueOf 10_000_000) (Nothing :: Maybe ())
+                void $ mkTxErrorH $ do
+                    balancedTx <- mkBalanceTx addrs def $ map m $ init $ tails distribution
+                    logPretty balancedTx
+                    logMsg "Signing..."
+                    signedTx <- signTx balancedTx
+                    logPretty signedTx
+                    logMsg "Submitting..."
+                    networkId <- getNetworkId
+                    node      <- asks envNodeFilePath
+                    void $ liftIO $ sumbitTxToNodeLocal node networkId signedTx
+                    logMsg "Submited."
                 go
             isTokensMinted = handle404 (pure False) $ do
                 p <- asks (envENCSParams . envAuxiliary)
