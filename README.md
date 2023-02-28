@@ -7,7 +7,7 @@ This is an implementation of the decentralized token distribution algorithm desc
 * `cardano-node` must be running on port 3003. Synchronize it before proceeding.
 * `kupo` must be running. Synchonize it before proceeding.
 * `cardano-wallet` must be running on port 8090 (the default) with the backend wallet loaded.
-*  The folder from which you run `encs` should contain the following files: "blockfrost.token", "config.json", "encs-params.json", "distribution.json", and "protocol-parameters.json". You can get a free blockfrost token [here](https://blockfrost.io/). The token must be written in quotes. In "encs-params.json", change the contents of "getTxId" and "txOutRefIdx" fields to an unspent output from your backend wallet. The file "distribution.json" should contain the list of addresses and token amounts to distribute.
+*  The folder from which you run `encs` must contain the following files: "blockfrost.token", "config.json", and "distribution.json". You can get a free blockfrost token [here](https://blockfrost.io/). The token must be written in quotes. In file "config.json", the field "auxiliary_env_file" should point to the location of "encs-params.json". In "encs-params.json", change the contents of "getTxId" and "txOutRefIdx" fields to an unspent output from your backend wallet. The file "distribution.json" should contain the list of addresses and token amounts to distribute.
 
 # How to use
 
