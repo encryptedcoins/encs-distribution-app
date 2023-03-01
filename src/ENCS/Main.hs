@@ -17,7 +17,7 @@ import           Cardano.Server.Tx                (checkForCleanUtxos, mkTx, mkB
 import           Cardano.Server.Utils.Logger      (HasLogger(..), logPretty)
 import           Control.Monad                    (unless, void)
 import           Control.Monad.Catch              (Exception (..), Handler (..), MonadThrow (throwM), catches, handle)
-import           Control.Monad.Extra              (unlessM, whenM)
+import           Control.Monad.Extra              (whenM)
 import           Control.Monad.IO.Class           (MonadIO (liftIO))
 import           Control.Monad.Reader             (asks)
 import           Data.Aeson                       (FromJSON (..), eitherDecodeFileStrict)
@@ -30,20 +30,17 @@ import qualified Data.Text.IO                     as T
 import           ENCOINS.ENCS.Distribution        (mkDistribution, processDistribution)
 import           ENCOINS.ENCS.Distribution.IO     (verifyDistribution)
 import           ENCOINS.ENCS.OffChain            (distributionTx, encsMintTx)
-import           ENCOINS.ENCS.OnChain             (ENCSParams, distributionValidatorAddresses, encsCurrencySymbol, encsTokenName)
+import           ENCOINS.ENCS.OnChain             (ENCSParams, distributionValidatorAddresses)
 import           ENCS.Opts                        (ServerMode (Run, Setup, Verify), runWithOpts)
 import           GHC.Generics                     (Generic)
 import           Ledger.Ada                       (lovelaceValueOf)
 import           Plutus.V2.Ledger.Api             (Address)
 import           PlutusAppsExtra.Constraints.OffChain (utxoProducedTx)
-import           PlutusAppsExtra.IO.Blockfrost    (getAssetHistory)
 import           PlutusAppsExtra.IO.ChainIndex    (ChainIndex (..), getUnspentTxOutFromRef)
 import           PlutusAppsExtra.IO.Node          (sumbitTxToNodeLocal)
 import           PlutusAppsExtra.IO.Wallet        (ownAddresses, signTx, getWalletAddr)
 import           PlutusAppsExtra.Types.Error      (MkTxError (..))
 import           PlutusAppsExtra.Utils.Address    (addressToBech32)
-import           PlutusAppsExtra.Utils.Blockfrost (AssetHistoryResponse (..), BfMintingPolarity (..))
-import           PlutusAppsExtra.Utils.Servant    (handle404)
 import qualified PlutusTx.Prelude                 as Plutus
 
 runENCSApp :: IO ()
@@ -89,7 +86,7 @@ instance HasServer ENCSApp where
                 UTXOFromParamsDoesntExists -> liftIO $ putStrLn "UTXO from encs-params doesn't exists."
 
     serverIdle = idleH $ do
-        unlessM isTokensMinted $ throwM TokensHaveNotBeenMinted
+        -- unlessM isTokensMinted $ throwM TokensHaveNotBeenMinted
         go
         where
             go = do
@@ -113,10 +110,10 @@ instance HasServer ENCSApp where
                     void $ liftIO $ sumbitTxToNodeLocal node networkId signedTx
                     logMsg "Submited."
                 go
-            isTokensMinted = handle404 (pure False) $ do
-                p <- asks (envENCSParams . envAuxiliary)
-                history <- liftIO $ getAssetHistory (encsCurrencySymbol p) encsTokenName
-                return $ any (\AssetHistoryResponse{..} -> ahrMintingPolarity == BfMint && ahrAmount == snd p) history
+            -- isTokensMinted = handle404 (pure False) $ do
+            --     p <- asks (envENCSParams . envAuxiliary)
+            --     history <- liftIO $ getAssetHistory (encsCurrencySymbol p) encsTokenName
+            --     return $ any (\AssetHistoryResponse{..} -> ahrMintingPolarity == BfMint && ahrAmount == snd p) history
             idleH = (`catches` [Handler preH, Handler endH])
             endH e = case e of
                 AllConstructorsFailed{} -> liftIO $ putStrLn "The distribution is completed!"
