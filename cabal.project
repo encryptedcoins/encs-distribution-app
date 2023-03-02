@@ -24,12 +24,12 @@ packages: ./.
 source-repository-package
   type: git
   location: https://github.com/encryptedcoins/ENCS
-  tag: 5e113aa4169086a4038d818b043cfe0c644902e2
+  tag: cb0b8bf1c64a2741a84144671fa272b951276653
 
 source-repository-package
   type: git
   location: https://github.com/encryptedcoins/cardano-server
-  tag: a09219d12e94499bc24784c837729ad7af768fc6
+  tag: 4c57b5ea5c38a2868b03d853c0b0761df3c1ac4e
   subdir:
     cardano-server
 
@@ -41,7 +41,7 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/encryptedcoins/plutus-apps-extra
-  tag: 3b8d23330b20408718192e2ce33888b099a3bde3
+  tag: 7839118b8240e8231d6ca357e249718f24e9bf6c
 
 source-repository-package
   type: git

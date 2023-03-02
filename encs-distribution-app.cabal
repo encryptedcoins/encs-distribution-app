@@ -33,11 +33,13 @@ library
       ENCS.Opts
     build-depends:
       base                          >= 4.9 && < 5,
+      bytestring                             -any,
       aeson                                  -any,
       cardano-api                            -any,
       cardano-server                         -any,
       containers                             -any,
       data-default                           -any,
+      directory                              -any,
       encs                                   -any,
       exceptions                             -any,
       extra                                  -any,

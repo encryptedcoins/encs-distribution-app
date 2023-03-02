@@ -1,11 +1,13 @@
-{-# LANGUAGE DeriveAnyClass    #-}
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
-{-# LANGUAGE TypeApplications  #-}
-{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE DeriveAnyClass      #-}
+{-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeFamilies        #-}
 
 module ENCS.Main where
 
@@ -13,18 +15,22 @@ import           Cardano.Api                      (writeFileJSON)
 import           Cardano.Server.Config            (decodeOrErrorFromFile)
 import           Cardano.Server.Internal          (AppM (..), Env (..), HasServer (..), getNetworkId, runAppM)
 import           Cardano.Server.Tx                (checkForCleanUtxos, mkTx)
+import           Cardano.Server.Utils.Logger      (HasLogger (logMsg), (.<))
 import           Control.Monad                    (unless, void)
-import           Control.Monad.Catch              (Exception (..), Handler (..), MonadThrow (throwM), catches, handle)
+import           Control.Monad.Catch              (Exception (..), Handler (..), MonadThrow (throwM), catches, handle, SomeException)
 import           Control.Monad.Extra              (unlessM, whenM)
 import           Control.Monad.IO.Class           (MonadIO (liftIO))
 import           Control.Monad.Reader             (asks)
-import           Data.Aeson                       (FromJSON (..), eitherDecodeFileStrict)
+import           Data.Aeson                       (FromJSON (..), eitherDecodeFileStrict, (.=))
+import qualified Data.Aeson                       as J
+import qualified Data.ByteString                  as BS
+import qualified Data.ByteString.Lazy             as BSL
 import           Data.Default                     (def)
+import           Data.Either                      (partitionEithers)
 import           Data.Functor                     ((<&>))
-import           Data.List                        (tails)
-import           Data.Maybe                       (fromMaybe, isNothing)
-import qualified Data.Text                        as T
-import qualified Data.Text.IO                     as T
+import           Data.List                        (tails, (\\))
+import           Data.Maybe                       (fromJust, isNothing)
+import           Data.String                      (IsString (fromString))
 import           ENCOINS.ENCS.Distribution        (mkDistribution, processDistribution)
 import           ENCOINS.ENCS.Distribution.IO     (verifyDistribution)
 import           ENCOINS.ENCS.OffChain            (distributionTx, encsMintTx)
@@ -36,10 +42,11 @@ import           PlutusAppsExtra.IO.Blockfrost    (getAssetHistory)
 import           PlutusAppsExtra.IO.ChainIndex    (ChainIndex (..), getUnspentTxOutFromRef)
 import           PlutusAppsExtra.IO.Wallet        (ownAddresses)
 import           PlutusAppsExtra.Types.Error      (MkTxError (..))
-import           PlutusAppsExtra.Utils.Address    (addressToBech32)
+import           PlutusAppsExtra.Utils.Address    (addressToBech32, bech32ToAddress)
 import           PlutusAppsExtra.Utils.Blockfrost (AssetHistoryResponse (..), BfMintingPolarity (..))
 import           PlutusAppsExtra.Utils.Servant    (handle404)
 import qualified PlutusTx.Prelude                 as Plutus
+import           System.Directory                 (removeFile)
 
 runENCSApp :: IO ()
 runENCSApp = do
@@ -105,22 +112,47 @@ instance HasServer ENCSApp where
                 AllConstructorsFailed{} -> liftIO $ putStrLn "The distribution is completed!"
                 _                       -> throwM e
             preH = \case
-                TokensHaveNotBeenMinted -> liftIO $ putStrLn 
+                TokensHaveNotBeenMinted -> liftIO $ putStrLn
                     "ENCS tokens haven't been minted yet. You should run application with '--setup' flag first."
 
     defaultChainIndex = Kupo
 
 verify :: FilePath -> FilePath -> AppM ENCSApp ()
 verify from to = do
-        encsParams <- asks $ envENCSParams . envAuxiliary
-        distribution <- liftIO $ eitherDecodeFileStrict from >>= either fail (pure . processDistribution)
-        res <- liftIO $ verifyDistribution encsParams distribution
-        either failure (void . liftIO . writeFileJSON to) res
+        encsParams     <- asks $ envENCSParams . envAuxiliary
+        newtworkId     <- getNetworkId
+        distribution   <- getDistribution
+        interruptedRes <- getInterruptedRes
+        let toBech = fromJust . addressToBech32 newtworkId
+            processedDistribution = map (\(a,b,_) -> (a,b)) interruptedRes
+        res <- fmap (fmap (fmap $ \(a,b,c) -> (toBech a,b,c))) 
+            $ addInterrupted interruptedRes $ liftIO $ verifyDistribution
+                encsParams
+                (distribution \\ processedDistribution)
+                (saveIntermidiate newtworkId)
+        liftIO $ void $ case partitionEithers res of
+            ([], r) -> writeFileJSON to r
+            (l , r) -> writeFileJSON to $ J.object 
+                [ "verified" .= r
+                , "failed"   .= map toBech l 
+                ]
+        liftIO $ removeFile toTemp
     where
-        failure addr = do
-            newtworkId <- getNetworkId
-            let prettyAddr = fromMaybe (T.pack $ show addr) $ addressToBech32 newtworkId addr
-            liftIO $ T.putStrLn $ "An error occurred while verifying the distribution. First failed address: " <> prettyAddr
+        getDistribution = liftIO $ eitherDecodeFileStrict from >>= either fail (pure . processDistribution)
+        getInterruptedRes = liftIO $ handle (\(_ :: SomeException) -> pure []) $ do
+            file <- init <$> readFile toTemp
+            case J.eitherDecode $ fromString $ '[' : file <> "]" of
+                Right res -> pure $ map (\(a,b,c) -> (fromJust $ bech32ToAddress a,b,c)) res
+                Left err -> [] <$ logMsg ("Can not parse previous interrupted distribution:\n" .< err)
+        toTemp = let (name, ext) = break (== '.') to in name <> "_temp" <> ext
+        saveIntermidiate newtworkId = Just $ mapM_ $ \tr -> do
+            BS.appendFile toTemp . BSL.toStrict $ encodeIntermidiate newtworkId tr
+            BS.appendFile toTemp ","
+        encodeIntermidiate newtworkId tr@(addr, amount, txId) = maybe (J.encode tr) (J.encode . (,amount,txId)) $
+            addressToBech32 newtworkId addr
+        addInterrupted interrupted current = do
+            current' <- current
+            pure $ map Right interrupted <> current'
 
 data SetupError
     = UTXOFromParamsDoesntExists
