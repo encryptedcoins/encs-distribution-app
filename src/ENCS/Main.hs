@@ -105,7 +105,8 @@ instance HasServer ENCSApp where
                 go
             isTokensMinted = handle404 (pure False) $ do
                 p <- asks (envENCSParams . envAuxiliary)
-                history <- liftIO $ getAssetHistory (encsCurrencySymbol p) encsTokenName
+                network <- getNetworkId
+                history <- liftIO $ getAssetHistory network (encsCurrencySymbol p) encsTokenName
                 return $ any (\AssetHistoryResponse{..} -> ahrMintingPolarity == BfMint && ahrAmount == snd p) history
             idleH = (`catches` [Handler preH, Handler endH])
             endH e = case e of
@@ -126,10 +127,12 @@ verify from to = do
         let toBech = fromJust . addressToBech32 newtworkId
             processedDistribution = map (\(a,b,_) -> (a,b)) interruptedRes
         res <- fmap (fmap (fmap $ \(a,b,c) -> (toBech a,b,c))) 
-            $ addInterrupted interruptedRes $ liftIO $ verifyDistribution
+            $ addInterrupted interruptedRes $ liftIO $ verifyDistribution 
+                newtworkId
                 encsParams
                 (distribution \\ processedDistribution)
                 (saveIntermidiate newtworkId)
+                interruptedRes
         liftIO $ void $ case partitionEithers res of
             ([], r) -> writeFileJSON to r
             (l , r) -> writeFileJSON to $ J.object 
