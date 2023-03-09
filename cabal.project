@@ -24,12 +24,12 @@ packages: ./.
 source-repository-package
   type: git
   location: https://github.com/encryptedcoins/ENCS
-  tag: 538e511b58ef615df58b9a25a3f0d53d540aafc2
+  tag: 94addb4e6bddc7aaa5394b4585052e287fb855fe
 
 source-repository-package
   type: git
   location: https://github.com/encryptedcoins/cardano-server
-  tag: ab4d951016a6303fd43fcbfe646346a2bab0a383
+  tag: 3b4125dc28096d05c27b56ddaee7de33f92479f0
   subdir:
     cardano-server
 

@@ -1,34 +1,39 @@
 # ENCS Distribution app
 This is an implementation of the decentralized token distribution algorithm described [here](https://encoins-crypto.medium.com/fully-decentralized-token-distribution-on-cardano-9d7317d8de6).
 
+# Prerequisites
+
+* System requirements: Linux OS, a processor capable of running `cardano-node`, 16 GB RAM, 300 GB of disk storage.
+* `cardano-node` must be running on port 3003. Synchronize it before proceeding.
+* `kupo` must be running. Synchonize it before proceeding.
+* `cardano-wallet` must be running on port 8090 (the default) with the backend wallet loaded.
+*  The folder from which you run `encs` must contain the following files: "blockfrost.token", "config.json", and "distribution.json". You can get a free blockfrost token [here](https://blockfrost.io/). The token must be written in quotes. In file "config.json", the field "auxiliary_env_file" should point to the location of "encs-params.json". In "encs-params.json", change the contents of "getTxId" and "txOutRefIdx" fields to an unspent output from your backend wallet. The file "distribution.json" should contain the list of addresses and token amounts to distribute.
+
 # How to use
 
-1. Fill [encs-params.json file](https://github.com/encryptedcoins/encs-distribution-app/blob/main/result/testnet-preview/encs-params.json).You should provide txOutReference (both hash and ID) from which you will mint encs-tokens and amount of these tokens respectively. You also need to create blockfrost.token file and fill it with your token which you can get [here](https://blockfrost.dev/).
+It is assumed that the folder containing `encs` is in `PATH`.
 
-2. Execute minting transaction:
+1. To mint tokens, execute:
 ```console
-$ cabal run encs -- setup
+$ encs setup
 ```
 
-3. Execute distributing transactions:
+2. To run the distribution algorithm, execute:
 ```console
-$ cabal run encoinsRelayServer -- run
+$ encs run
 ```
 
-4. You can also verify the completeness of your distribution with this command:
+3. You can verify the correctness of the distribution with this command:
 ```console
-$ cabal run encoinsRelayServer -- verify
+$ encs verify
 ```
+It matches every entry in the "distribution.json" to the transaction ID in which the tokens are delivered to the address.
 
 # Dependencies
-To run this app you need [the haskell cabal](https://www.haskell.org/cabal/). This app also has the following dependencies:
+To run this app you need [the haskell cabal](https://www.haskell.org/cabal/). The app has the following key dependencies:
 
 - [ENCS](https://github.com/encryptedcoins/ENCS)
 - [cardano-server](https://github.com/encryptedcoins/cardano-server)
 - [plutus-tx-extra](https://github.com/encryptedcoins/plutus-tx-extra.git)
 - [plutus-apps-extra](https://github.com/encryptedcoins/plutus-apps-extra)
 - [plutus-apps](https://github.com/input-output-hk/plutus-apps)
-- [cardano-wallet](https://github.com/input-output-hk/cardano-wallet)
-- [quickcheck-contractmodel](https://github.com/Quviq/quickcheck-contractmodel)
-- [cardano-addresses](https://github.com/input-output-hk/cardano-addresses)
-- [cardano-ledger](https://github.com/input-output-hk/cardano-ledger)

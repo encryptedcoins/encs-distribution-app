@@ -1,3 +1,4 @@
 dist-newstyle
 result/testnet-preview/wallets/*
 result/testnet-preview/logs/*
+result/testnet-preview/blockfrost.token
