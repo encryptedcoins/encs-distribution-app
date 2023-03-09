@@ -1,0 +1,14 @@
+{
+   "20": {
+      "123abc": {
+         "ENCS": {
+            "decimals": 6,
+            "desc": "ENCOINS protocol",
+            "icon": "ipfs://abcd",
+            "ticker": "ENCS",
+            "url": "https://encoins.io",
+            "version": "1.0"
+         }
+      }
+   }
+}

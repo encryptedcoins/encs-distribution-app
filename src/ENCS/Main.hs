@@ -10,21 +10,23 @@
 
 module ENCS.Main where
 
-import           Cardano.Api                      (writeFileJSON)
+import           Cardano.Api                      (writeFileJSON, TxMetadataJsonSchema (TxMetadataJsonNoSchema), metadataFromJson)
 import           Cardano.Server.Config            (decodeOrErrorFromFile)
 import           Cardano.Server.Internal          (AppM (..), Env (..), HasServer (..), getNetworkId, runAppM)
-import           Cardano.Server.Tx                (checkForCleanUtxos, mkTx, mkBalanceTx, mkTxErrorH)
-import           Cardano.Server.Utils.Logger      (HasLogger(..), logPretty)
+import           Cardano.Server.Tx                (checkForCleanUtxos, mkBalanceTx, mkTxErrorH)
+import           Cardano.Server.Utils.Logger      (HasLogger(..), logPretty, logSmth)
 import           Control.Monad                    (unless, void)
 import           Control.Monad.Catch              (Exception (..), Handler (..), MonadThrow (throwM), catches, handle)
 import           Control.Monad.Extra              (whenM)
 import           Control.Monad.IO.Class           (MonadIO (liftIO))
 import           Control.Monad.Reader             (asks)
-import           Data.Aeson                       (FromJSON (..), eitherDecodeFileStrict)
+import           Data.Aeson                       (FromJSON (..), eitherDecodeFileStrict, toJSON, object, Value, (.=))
 import           Data.Default                     (def)
+import           Data.Either.Extra                (eitherToMaybe)
 import           Data.Functor                     ((<&>))
 import           Data.List                        (tails)
 import           Data.Maybe                       (fromMaybe, isNothing)
+import           Data.Text                        (Text)
 import qualified Data.Text                        as T
 import qualified Data.Text.IO                     as T
 import           ENCOINS.ENCS.Distribution        (mkDistribution, processDistribution)
@@ -41,7 +43,28 @@ import           PlutusAppsExtra.IO.Node          (sumbitTxToNodeLocal)
 import           PlutusAppsExtra.IO.Wallet        (ownAddresses, signTx, getWalletAddr)
 import           PlutusAppsExtra.Types.Error      (MkTxError (..))
 import           PlutusAppsExtra.Utils.Address    (addressToBech32)
+import           PlutusAppsExtra.Utils.Tx         (addMetadataToCardanoTx)
 import qualified PlutusTx.Prelude                 as Plutus
+
+encsMetadata :: Data.Aeson.Value
+encsMetadata = object
+  [
+    "20" .= object
+      [
+        "123abc" .= object
+          [
+            "ENCS" .= object
+            [
+                "decimals" .= (6 :: Int),
+                "desc" .= ("ENCOINS protocol" :: Text),
+                "icon" .= ("ipfs://abcd" :: Text),
+                "ticker" .= ("ENCS" :: Text),
+                "url" .= ("https://encoins.io" :: Text),
+                "version" .= ("1.0" :: Text)
+            ]
+          ]
+      ]
+  ]
 
 runENCSApp :: IO ()
 runENCSApp = do
@@ -70,6 +93,7 @@ instance HasServer ENCSApp where
     type InputOf ENCSApp = ()
 
     serverSetup = setupH $ do
+            logSmth $ metadataFromJson TxMetadataJsonNoSchema $ toJSON encsMetadata
             ENCSEnv{..} <- asks envAuxiliary
             checkThatSetupUTXOExists $ fst envENCSParams
             let fee          = 100_000_000
@@ -78,7 +102,19 @@ instance HasServer ENCSApp where
             unless (null distribution) $ do
                 let utxos = Just $ head distribution
                 addrs <- ownAddresses
-                void $ mkTx addrs def [encsMintTx envENCSParams utxos]
+                void $ mkTxErrorH $ do
+                    balancedTx <- mkBalanceTx addrs def [encsMintTx envENCSParams utxos]
+                    let balancedTx' = addMetadataToCardanoTx balancedTx (eitherToMaybe $ metadataFromJson TxMetadataJsonNoSchema $ toJSON encsMetadata)
+                    logPretty balancedTx'
+                    -- logMsg "Signing..."
+                    -- signedTx <- signTx balancedTx'
+                    -- logPretty signedTx
+                    -- logMsg "Submitting..."
+                    -- networkId <- getNetworkId
+                    -- node      <- asks envNodeFilePath
+                    -- void $ liftIO $ sumbitTxToNodeLocal node networkId signedTx
+                    -- logMsg "Submited."
+                -- void $ mkTx addrs def [encsMintTx envENCSParams utxos]
         where
             checkThatSetupUTXOExists txOutRef =
                 whenM (isNothing <$> getUnspentTxOutFromRef txOutRef) $ throwM UTXOFromParamsDoesntExists
@@ -119,7 +155,7 @@ instance HasServer ENCSApp where
                 AllConstructorsFailed{} -> liftIO $ putStrLn "The distribution is completed!"
                 _                       -> throwM e
             preH = \case
-                TokensHaveNotBeenMinted -> liftIO $ putStrLn 
+                TokensHaveNotBeenMinted -> liftIO $ putStrLn
                     "ENCS tokens haven't been minted yet. You should run application with '--setup' flag first."
 
     defaultChainIndex = Kupo
