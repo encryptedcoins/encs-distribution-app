@@ -37,12 +37,14 @@ import           ENCOINS.ENCS.Distribution            (mkDistribution, processDi
 import           ENCOINS.ENCS.Distribution.IO         (verifyDistribution)
 import           ENCOINS.ENCS.OffChain                (distributionTx, encsMintTx)
 import           ENCOINS.ENCS.OnChain                 (ENCSParams, distributionValidatorAddresses)
-import           ENCS.Opts                            (ServerMode (Run, Setup, Verify), runWithOpts)
+import           ENCS.Opts                            (ServerMode (..), runWithOpts)
 import           GHC.Generics                         (Generic)
+import           Ledger                               (Slot)
 import           Ledger.Ada                           (lovelaceValueOf)
-import           Plutus.V2.Ledger.Api                 (Address)
+import           Plutus.V2.Ledger.Api                 (Address, TokenName (TokenName))
 import           PlutusAppsExtra.Constraints.OffChain (utxoProducedTx)
 import           PlutusAppsExtra.IO.ChainIndex        (ChainIndex (..), getUnspentTxOutFromRef)
+import           PlutusAppsExtra.IO.ChainIndex.Kupo   (getUtxosWithTokensBetweenSlots)
 import           PlutusAppsExtra.IO.Node              (sumbitTxToNodeLocal)
 import           PlutusAppsExtra.IO.Wallet            (getWalletAddr, ownAddresses, signTx)
 import           PlutusAppsExtra.Types.Error          (MkTxError (..))
@@ -57,6 +59,7 @@ runENCSApp = do
         Run            -> serverIdle
         Setup          -> serverSetup
         Verify from to -> verify from to
+        Find   from to -> find   from to 
 
 data ENCSApp
 
@@ -170,6 +173,12 @@ verify from to = do
             current' <- current
             pure $ map Right interrupted <> current'
 
+find :: Slot -> Slot -> AppM ENCSApp ()
+find from to = do
+    (_, amt) <- asks $ envENCSParams . envAuxiliary
+    let name = TokenName "ENCS"
+    void $ liftIO $ getUtxosWithTokensBetweenSlots name amt from to >>= writeFileJSON "find.json" 
+    
 data SetupError
     = UTXOFromParamsDoesntExists
     deriving (Show, Exception)
